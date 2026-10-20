@@ -28,6 +28,8 @@ gradle.bat --no-daemon testDebugUnitTest assembleDebug
 
 The debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.
 
+For a locally installable release build, use `gradle.bat --no-daemon assembleRelease`. This workspace release variant is signed with the standard debug keystore so it can be installed directly with ADB; replace that signing configuration with a private release key before distribution.
+
 ## Install and configure a device
 
 ```powershell
@@ -41,7 +43,8 @@ On the device:
 2. Open **Select mock location app**.
 3. Choose **Location Spoofer**.
 4. Grant location and notification permissions when the app asks.
-5. Set a coordinate and press **Start spoof**.
+5. Set a coordinate, open **Map**, pan the marker, and press **Apply location**.
+6. Press **Start spoof**.
 
 The foreground notification is intentionally ongoing and has a **Stop** action. Stop spoofing from the app or from that notification before selecting another mock-location provider.
 

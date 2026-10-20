@@ -18,8 +18,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -29,7 +31,6 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -53,6 +54,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import com.locationspoofer.data.RepositoryProvider
 import com.locationspoofer.domain.model.Coordinates
@@ -104,7 +107,10 @@ private fun LocationSpooferApp() {
                         latitude = formatCoordinate(coordinates.latitude)
                         longitude = formatCoordinate(coordinates.longitude)
                     },
-                    onBack = { showMap = false },
+                    onApply = {
+                        update(state.coordinates)
+                        showMap = false
+                    },
                     modifier = Modifier.padding(padding),
                 )
             } else {
@@ -195,20 +201,27 @@ private fun SpoofScreen(
 private fun MapScreen(
     coordinates: Coordinates,
     onCoordinatesChanged: (Coordinates) -> Unit,
-    onBack: () -> Unit,
+    onApply: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var mapView: NativeMapView? by remember { mutableStateOf(null) }
-    Column(modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Pan the map to move the marker", style = MaterialTheme.typography.titleMedium)
+    Column(modifier.fillMaxSize().navigationBarsPadding()) {
+        Row(
+            Modifier.fillMaxWidth()
+                .zIndex(1f)
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Pan the map, then apply the marker", style = MaterialTheme.typography.titleMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedButton(onClick = { mapView?.zoomOut() }, content = { Text("−") })
                 OutlinedButton(onClick = { mapView?.zoomIn() }, content = { Text("+") })
-                FilterChip(selected = false, onClick = onBack, label = { Text("Done") })
+                Button(onClick = onApply) { Text("Apply location") }
             }
         }
-        Box(Modifier.fillMaxWidth().weight(1f)) {
+        Box(Modifier.fillMaxWidth().weight(1f).clipToBounds()) {
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { context ->
@@ -225,7 +238,11 @@ private fun MapScreen(
                 },
             )
         }
-        Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) { Text(coordinates.toString(), Modifier.padding(16.dp), style = MaterialTheme.typography.titleMedium) }
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 3.dp,
+            modifier = Modifier.fillMaxWidth().zIndex(1f),
+        ) { Text(coordinates.toString(), Modifier.padding(16.dp), style = MaterialTheme.typography.titleMedium) }
     }
 }
 

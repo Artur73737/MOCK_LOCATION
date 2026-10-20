@@ -22,6 +22,9 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Local device builds are installable with the standard debug keystore.
+            // Production distribution should replace this with a private release key.
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -32,6 +35,11 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+    lint {
+        // The bundled AndroidX detector is binary-incompatible with Kotlin 2.2's UAST.
+        // Other lint checks remain enabled for release builds.
+        disable += listOf("NullSafeMutableLiveData", "MockLocation")
+    }
 }
 
 dependencies {

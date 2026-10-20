@@ -11,6 +11,7 @@ import android.graphics.Rect
 import android.graphics.Typeface
 import android.view.MotionEvent
 import android.view.View
+import android.os.SystemClock
 import com.locationspoofer.domain.model.Coordinates
 import java.io.BufferedInputStream
 import java.net.HttpURLConnection
@@ -61,6 +62,7 @@ class NativeMapView(context: Context) : View(context) {
     private var lastTouchX = 0f
     private var lastTouchY = 0f
     private var isDragging = false
+    private val ignoreTouchesUntil = SystemClock.uptimeMillis() + 500L
 
     init {
         setBackgroundColor(Color.rgb(225, 235, 238))
@@ -168,6 +170,8 @@ class NativeMapView(context: Context) : View(context) {
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        // Do not let the tap that opened the screen become a map gesture.
+        if (SystemClock.uptimeMillis() < ignoreTouchesUntil) return true
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 lastTouchX = event.x
