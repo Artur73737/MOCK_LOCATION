@@ -33,6 +33,10 @@ class LocationRepositoryImpl(context: Context) : LocationRepository {
         publish(_state.value.copy(coordinates = coordinates, lastError = null))
     }.onFailure { error -> publish(_state.value.copy(lastError = error.message ?: "Coordinate non valide")) }
 
+    override fun reportError(message: String) {
+        publish(_state.value.copy(lastError = message))
+    }
+
     override fun clearError() {
         publish(_state.value.copy(lastError = null))
     }

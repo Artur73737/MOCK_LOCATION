@@ -12,6 +12,7 @@ import android.location.LocationManager
 import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.locationspoofer.data.RepositoryProvider
 import com.locationspoofer.domain.model.SpoofState
@@ -72,7 +73,7 @@ class LocationSpoofService : Service() {
 
     private fun inject(state: SpoofState) {
         val provider = LocationManager.GPS_PROVIDER
-        if (!locationManager.allProviders.contains(provider)) {
+        runCatching {
             locationManager.addTestProvider(
                 provider,
                 false,
@@ -109,8 +110,10 @@ class LocationSpoofService : Service() {
     }
 
     private fun repositoryStateError(error: Throwable) {
-        // The service keeps running so a user can fix mock-location selection and retry.
-        repository.updateCoordinates(repository.state.value.coordinates)
+        // Keep the service alive so the user can fix mock-location selection and retry.
+        val message = error.message ?: error::class.java.simpleName
+        Log.e(TAG, "Unable to inject mock location", error)
+        repository.reportError(message)
     }
 
     private fun updateNotification(state: SpoofState) {
@@ -159,5 +162,6 @@ class LocationSpoofService : Service() {
         const val ACTION_STOP = "com.locationspoofer.action.STOP"
         private const val CHANNEL_ID = "location_spoof"
         private const val NOTIFICATION_ID = 4201
+        private const val TAG = "LocationSpoofService"
     }
 }
