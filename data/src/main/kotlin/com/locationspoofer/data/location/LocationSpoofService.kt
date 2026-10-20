@@ -16,6 +16,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.locationspoofer.data.RepositoryProvider
 import com.locationspoofer.domain.model.SpoofState
+import com.locationspoofer.domain.model.EarthLocationGenerator
 import com.locationspoofer.domain.repository.LocationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +32,8 @@ class LocationSpoofService : Service() {
     private var loopJob: Job? = null
     private lateinit var repository: LocationRepository
     private lateinit var locationManager: LocationManager
+    private val earthLocationGenerator = EarthLocationGenerator()
+    private var lastRandomizedAt = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -60,8 +63,9 @@ class LocationSpoofService : Service() {
                 val state = repository.state.value
                 if (state.active) {
                     try {
-                        inject(state)
-                        updateNotification(state)
+                        val currentState = randomizeIfDue(state)
+                        inject(currentState)
+                        updateNotification(currentState)
                     } catch (error: Throwable) {
                         repositoryStateError(error)
                     }
@@ -69,6 +73,19 @@ class LocationSpoofService : Service() {
                 delay(1000L)
             }
         }
+    }
+
+    private fun randomizeIfDue(state: SpoofState): SpoofState {
+        if (!state.randomizeEarth) {
+            lastRandomizedAt = 0L
+            return state
+        }
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastRandomizedAt < state.randomizeIntervalMillis) return state
+        lastRandomizedAt = now
+        val coordinates = earthLocationGenerator.next()
+        repository.updateCoordinates(coordinates)
+        return repository.state.value
     }
 
     private fun inject(state: SpoofState) {

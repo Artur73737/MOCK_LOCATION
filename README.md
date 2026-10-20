@@ -9,6 +9,7 @@ Location Spoofer is a native Kotlin Android application that publishes a user-se
 - Native Jetpack Compose UI in English.
 - Native Kotlin `View` map renderer using OpenStreetMap raster tiles. The map has no WebView dependency; a visible grid remains available when the device is offline.
 - Pan and zoom the map, edit latitude/longitude directly, and apply coordinates immediately.
+- Optional **Randomize Earth location** mode with a seconds/minutes interval selector. Each update generates a new valid latitude/longitude and injects it through the same GPS test provider.
 - Coordinate state persisted in app storage and restored after process recreation.
 - Clear runtime status and error reporting when Android rejects mock locations.
 

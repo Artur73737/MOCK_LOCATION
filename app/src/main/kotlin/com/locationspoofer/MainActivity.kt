@@ -31,12 +31,15 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.Switch
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Surface
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -134,6 +137,7 @@ private fun LocationSpooferApp() {
                         }
                     },
                     onStop = { stop() },
+                    onRandomizerChanged = { enabled, intervalMillis -> repository.configureRandomizer(enabled, intervalMillis) },
                     mockLocationEnabled = isMockLocationSelected(context),
                     modifier = Modifier.padding(padding),
                 )
@@ -155,9 +159,22 @@ private fun SpoofScreen(
     onApply: () -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
+    onRandomizerChanged: (Boolean, Long) -> Unit,
     mockLocationEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    var randomizerIntervalValue by remember(state.randomizeIntervalMillis) {
+        mutableStateOf(if (state.randomizeIntervalMillis % 60_000L == 0L) (state.randomizeIntervalMillis / 60_000L).toString() else (state.randomizeIntervalMillis / 1_000L).toString())
+    }
+    var randomizerUnit by remember(state.randomizeIntervalMillis) {
+        mutableStateOf(if (state.randomizeIntervalMillis % 60_000L == 0L) RandomizerUnit.MINUTES else RandomizerUnit.SECONDS)
+    }
+    var randomizerMenuExpanded by remember { mutableStateOf(false) }
+
+    fun updateRandomizerInterval(value: String = randomizerIntervalValue, unit: RandomizerUnit = randomizerUnit) {
+        value.toLongOrNull()?.takeIf { it >= 1L }?.let { onRandomizerChanged(state.randomizeEarth, it * unit.multiplierMillis) }
+    }
+
     Column(
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -187,6 +204,49 @@ private fun SpoofScreen(
                 Icon(Icons.Default.Map, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.size(6.dp)); Text("Map")
             }
         }
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Randomize Earth location", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("Generate a new real GPS coordinate at a fixed interval.", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Switch(
+                        checked = state.randomizeEarth,
+                        onCheckedChange = { onRandomizerChanged(it, state.randomizeIntervalMillis) },
+                    )
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = randomizerIntervalValue,
+                        onValueChange = { value ->
+                            randomizerIntervalValue = value.filter(Char::isDigit).take(6)
+                            updateRandomizerInterval(randomizerIntervalValue)
+                        },
+                        label = { Text("Update every") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        enabled = state.randomizeEarth,
+                    )
+                    Box {
+                        OutlinedButton(enabled = state.randomizeEarth, onClick = { randomizerMenuExpanded = true }) { Text(randomizerUnit.label) }
+                        DropdownMenu(expanded = randomizerMenuExpanded, onDismissRequest = { randomizerMenuExpanded = false }) {
+                            RandomizerUnit.entries.forEach { unit ->
+                                DropdownMenuItem(
+                                    text = { Text(unit.label) },
+                                    onClick = {
+                                        randomizerUnit = unit
+                                        randomizerMenuExpanded = false
+                                        updateRandomizerInterval(unit = unit)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+                Text("The first random coordinate is generated when spoofing starts. Minimum interval: 1 second.", style = MaterialTheme.typography.bodySmall)
+            }
+        }
         Button(onClick = if (state.active) onStop else onStart, modifier = Modifier.fillMaxWidth()) {
             Icon(if (state.active) Icons.Default.Stop else Icons.Default.PlayArrow, contentDescription = null)
             Spacer(Modifier.size(8.dp)); Text(if (state.active) "Stop spoof" else "Start spoof")
@@ -195,6 +255,11 @@ private fun SpoofScreen(
         Text("Real system integration", style = MaterialTheme.typography.titleMedium)
         Text("This app uses Android's official GPS test provider. Root is not required, but Android must be configured to allow this app to provide mock locations.")
     }
+}
+
+private enum class RandomizerUnit(val label: String, val multiplierMillis: Long) {
+    SECONDS("seconds", 1_000L),
+    MINUTES("minutes", 60_000L),
 }
 
 @Composable

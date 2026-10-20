@@ -33,6 +33,11 @@ class LocationRepositoryImpl(context: Context) : LocationRepository {
         publish(_state.value.copy(coordinates = coordinates, lastError = null))
     }.onFailure { error -> publish(_state.value.copy(lastError = error.message ?: "Invalid coordinates")) }
 
+    override fun configureRandomizer(enabled: Boolean, intervalMillis: Long): Result<Unit> = runCatching {
+        require(intervalMillis >= MIN_RANDOMIZER_INTERVAL_MILLIS) { "Randomizer interval must be at least one second" }
+        publish(_state.value.copy(randomizeEarth = enabled, randomizeIntervalMillis = intervalMillis, lastError = null))
+    }.onFailure { error -> publish(_state.value.copy(lastError = error.message ?: "Invalid randomizer settings")) }
+
     override fun reportError(message: String) {
         publish(_state.value.copy(lastError = message))
     }
@@ -47,6 +52,9 @@ class LocationRepositoryImpl(context: Context) : LocationRepository {
             preferences.getString(KEY_LATITUDE, "41.9028")!!.toDoubleOrNull() ?: 41.9028,
             preferences.getString(KEY_LONGITUDE, "12.4964")!!.toDoubleOrNull() ?: 12.4964,
         ),
+        randomizeEarth = preferences.getBoolean(KEY_RANDOMIZE_EARTH, false),
+        randomizeIntervalMillis = preferences.getLong(KEY_RANDOMIZE_INTERVAL_MILLIS, 60_000L)
+            .coerceAtLeast(MIN_RANDOMIZER_INTERVAL_MILLIS),
     )
 
     private fun publish(state: SpoofState) {
@@ -55,6 +63,8 @@ class LocationRepositoryImpl(context: Context) : LocationRepository {
             .putBoolean(KEY_ACTIVE, state.active)
             .putString(KEY_LATITUDE, state.coordinates.latitude.toString())
             .putString(KEY_LONGITUDE, state.coordinates.longitude.toString())
+            .putBoolean(KEY_RANDOMIZE_EARTH, state.randomizeEarth)
+            .putLong(KEY_RANDOMIZE_INTERVAL_MILLIS, state.randomizeIntervalMillis)
             .apply()
     }
 
@@ -63,5 +73,8 @@ class LocationRepositoryImpl(context: Context) : LocationRepository {
         const val KEY_ACTIVE = "active"
         const val KEY_LATITUDE = "latitude"
         const val KEY_LONGITUDE = "longitude"
+        const val KEY_RANDOMIZE_EARTH = "randomize_earth"
+        const val KEY_RANDOMIZE_INTERVAL_MILLIS = "randomize_interval_millis"
+        const val MIN_RANDOMIZER_INTERVAL_MILLIS = 1_000L
     }
 }

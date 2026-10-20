@@ -9,6 +9,7 @@ interface LocationRepository {
     fun start(): Result<Unit>
     fun stop(): Result<Unit>
     fun updateCoordinates(coordinates: Coordinates): Result<Unit>
+    fun configureRandomizer(enabled: Boolean, intervalMillis: Long): Result<Unit>
     fun reportError(message: String)
     fun clearError()
 }
