@@ -6,6 +6,7 @@ import androidx.core.content.ContextCompat
 import com.locationspoofer.data.location.LocationSpoofService
 import com.locationspoofer.domain.model.Coordinates
 import com.locationspoofer.domain.model.SpoofState
+import com.locationspoofer.domain.model.RandomizerRegion
 import com.locationspoofer.domain.repository.LocationRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,9 +34,9 @@ class LocationRepositoryImpl(context: Context) : LocationRepository {
         publish(_state.value.copy(coordinates = coordinates, lastError = null))
     }.onFailure { error -> publish(_state.value.copy(lastError = error.message ?: "Invalid coordinates")) }
 
-    override fun configureRandomizer(enabled: Boolean, intervalMillis: Long): Result<Unit> = runCatching {
+    override fun configureRandomizer(enabled: Boolean, intervalMillis: Long, region: RandomizerRegion): Result<Unit> = runCatching {
         require(intervalMillis >= MIN_RANDOMIZER_INTERVAL_MILLIS) { "Randomizer interval must be at least one second" }
-        publish(_state.value.copy(randomizeEarth = enabled, randomizeIntervalMillis = intervalMillis, lastError = null))
+        publish(_state.value.copy(randomizeEarth = enabled, randomizeIntervalMillis = intervalMillis, randomizerRegion = region, lastError = null))
     }.onFailure { error -> publish(_state.value.copy(lastError = error.message ?: "Invalid randomizer settings")) }
 
     override fun reportError(message: String) {
@@ -55,6 +56,9 @@ class LocationRepositoryImpl(context: Context) : LocationRepository {
         randomizeEarth = preferences.getBoolean(KEY_RANDOMIZE_EARTH, false),
         randomizeIntervalMillis = preferences.getLong(KEY_RANDOMIZE_INTERVAL_MILLIS, 60_000L)
             .coerceAtLeast(MIN_RANDOMIZER_INTERVAL_MILLIS),
+        randomizerRegion = preferences.getString(KEY_RANDOMIZER_REGION, RandomizerRegion.WORLD.name)
+            ?.let { value -> runCatching { RandomizerRegion.valueOf(value) }.getOrDefault(RandomizerRegion.WORLD) }
+            ?: RandomizerRegion.WORLD,
     )
 
     private fun publish(state: SpoofState) {
@@ -65,6 +69,7 @@ class LocationRepositoryImpl(context: Context) : LocationRepository {
             .putString(KEY_LONGITUDE, state.coordinates.longitude.toString())
             .putBoolean(KEY_RANDOMIZE_EARTH, state.randomizeEarth)
             .putLong(KEY_RANDOMIZE_INTERVAL_MILLIS, state.randomizeIntervalMillis)
+            .putString(KEY_RANDOMIZER_REGION, state.randomizerRegion.name)
             .apply()
     }
 
@@ -75,6 +80,7 @@ class LocationRepositoryImpl(context: Context) : LocationRepository {
         const val KEY_LONGITUDE = "longitude"
         const val KEY_RANDOMIZE_EARTH = "randomize_earth"
         const val KEY_RANDOMIZE_INTERVAL_MILLIS = "randomize_interval_millis"
+        const val KEY_RANDOMIZER_REGION = "randomizer_region"
         const val MIN_RANDOMIZER_INTERVAL_MILLIS = 1_000L
     }
 }

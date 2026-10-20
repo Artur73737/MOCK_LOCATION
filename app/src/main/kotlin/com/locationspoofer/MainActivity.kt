@@ -62,6 +62,7 @@ import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import com.locationspoofer.data.RepositoryProvider
 import com.locationspoofer.domain.model.Coordinates
+import com.locationspoofer.domain.model.RandomizerRegion
 import com.locationspoofer.domain.repository.LocationRepository
 import com.locationspoofer.domain.usecase.StartSpoofUseCase
 import com.locationspoofer.domain.usecase.StopSpoofUseCase
@@ -137,7 +138,7 @@ private fun LocationSpooferApp() {
                         }
                     },
                     onStop = { stop() },
-                    onRandomizerChanged = { enabled, intervalMillis -> repository.configureRandomizer(enabled, intervalMillis) },
+                    onRandomizerChanged = { enabled, intervalMillis, region -> repository.configureRandomizer(enabled, intervalMillis, region) },
                     mockLocationEnabled = isMockLocationSelected(context),
                     modifier = Modifier.padding(padding),
                 )
@@ -159,7 +160,7 @@ private fun SpoofScreen(
     onApply: () -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
-    onRandomizerChanged: (Boolean, Long) -> Unit,
+    onRandomizerChanged: (Boolean, Long, RandomizerRegion) -> Unit,
     mockLocationEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -170,9 +171,11 @@ private fun SpoofScreen(
         mutableStateOf(if (state.randomizeIntervalMillis % 60_000L == 0L) RandomizerUnit.MINUTES else RandomizerUnit.SECONDS)
     }
     var randomizerMenuExpanded by remember { mutableStateOf(false) }
+    var regionMenuExpanded by remember { mutableStateOf(false) }
+    var randomizerRegion by remember(state.randomizerRegion) { mutableStateOf(state.randomizerRegion) }
 
     fun updateRandomizerInterval(value: String = randomizerIntervalValue, unit: RandomizerUnit = randomizerUnit) {
-        value.toLongOrNull()?.takeIf { it >= 1L }?.let { onRandomizerChanged(state.randomizeEarth, it * unit.multiplierMillis) }
+        value.toLongOrNull()?.takeIf { it >= 1L }?.let { onRandomizerChanged(state.randomizeEarth, it * unit.multiplierMillis, randomizerRegion) }
     }
 
     Column(
@@ -209,11 +212,11 @@ private fun SpoofScreen(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Randomize Earth location", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("Generate a new real GPS coordinate at a fixed interval.", style = MaterialTheme.typography.bodySmall)
+                        Text("Generate a new land coordinate at a fixed interval.", style = MaterialTheme.typography.bodySmall)
                     }
                     Switch(
                         checked = state.randomizeEarth,
-                        onCheckedChange = { onRandomizerChanged(it, state.randomizeIntervalMillis) },
+                        onCheckedChange = { onRandomizerChanged(it, state.randomizeIntervalMillis, randomizerRegion) },
                     )
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -244,7 +247,25 @@ private fun SpoofScreen(
                         }
                     }
                 }
-                Text("The first random coordinate is generated when spoofing starts. Minimum interval: 1 second.", style = MaterialTheme.typography.bodySmall)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Region", style = MaterialTheme.typography.bodyLarge)
+                    Box {
+                        OutlinedButton(enabled = state.randomizeEarth, onClick = { regionMenuExpanded = true }) { Text(randomizerRegion.label) }
+                        DropdownMenu(expanded = regionMenuExpanded, onDismissRequest = { regionMenuExpanded = false }) {
+                            RandomizerRegion.entries.forEach { region ->
+                                DropdownMenuItem(
+                                    text = { Text(region.label) },
+                                    onClick = {
+                                        randomizerRegion = region
+                                        regionMenuExpanded = false
+                                        updateRandomizerInterval()
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+                Text("Only inland catalogue points are used. The first random coordinate is generated when spoofing starts. Minimum interval: 1 second.", style = MaterialTheme.typography.bodySmall)
             }
         }
         Button(onClick = if (state.active) onStop else onStart, modifier = Modifier.fillMaxWidth()) {

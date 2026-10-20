@@ -83,7 +83,7 @@ class LocationSpoofService : Service() {
         val now = SystemClock.elapsedRealtime()
         if (now - lastRandomizedAt < state.randomizeIntervalMillis) return state
         lastRandomizedAt = now
-        val coordinates = earthLocationGenerator.next()
+        val coordinates = earthLocationGenerator.next(state.randomizerRegion)
         repository.updateCoordinates(coordinates)
         return repository.state.value
     }
