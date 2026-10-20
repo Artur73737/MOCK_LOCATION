@@ -127,7 +127,7 @@ class LocationSpoofService : Service() {
         val stopPendingIntent = PendingIntent.getService(this, 2, stopIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
-            .setContentTitle("Location Spoof attivo")
+            .setContentTitle("Location Spoofer active")
             .setContentText(state.coordinates.toString())
             .setContentIntent(contentIntent)
             .setOngoing(true)
@@ -139,7 +139,7 @@ class LocationSpoofService : Service() {
 
     private fun createNotificationChannel() {
         val channel = NotificationChannel(CHANNEL_ID, "Location spoof", NotificationManager.IMPORTANCE_LOW).apply {
-            description = "Stato del mock location in esecuzione"
+            description = "Foreground location spoofing status"
         }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }

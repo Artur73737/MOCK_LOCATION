@@ -1,6 +1,7 @@
 package com.locationspoofer.domain.model
 
 import kotlin.math.abs
+import java.util.Locale
 
 data class Coordinates(
     val latitude: Double,
@@ -22,5 +23,5 @@ data class Coordinates(
         return earthRadiusMeters * 2 * kotlin.math.atan2(kotlin.math.sqrt(a), kotlin.math.sqrt(1 - a))
     }
 
-    override fun toString(): String = "${"%.6f".format(latitude)}, ${"%.6f".format(longitude)}"
+    override fun toString(): String = String.format(Locale.US, "%.6f, %.6f", latitude, longitude)
 }

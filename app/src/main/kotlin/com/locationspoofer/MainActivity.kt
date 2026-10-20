@@ -6,11 +6,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.webkit.JavascriptInterface
-import android.webkit.WebChromeClient
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -45,7 +40,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Surface
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -100,10 +94,10 @@ private fun LocationSpooferApp() {
 
     MaterialTheme {
         Scaffold(
-            topBar = { TopAppBar(title = { Text(if (showMap) "Scegli posizione" else "Location Spoofer") }) },
+            topBar = { TopAppBar(title = { Text(if (showMap) "Choose location" else "Location Spoofer") }) },
         ) { padding ->
             if (showMap) {
-                MapScreen(
+                    MapScreen(
                     coordinates = state.coordinates,
                     onCoordinatesChanged = { coordinates ->
                         update(coordinates)
@@ -164,36 +158,36 @@ private fun SpoofScreen(
     ) {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(if (state.active) "Spoof attivo" else "Spoof fermo", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(if (state.active) "Spoof active" else "Spoof stopped", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text(state.coordinates.toString(), style = MaterialTheme.typography.bodyLarge)
-                Text(if (state.active) "Il servizio invia una posizione GPS ogni secondo." else "Avvia il servizio per iniettare la posizione nel sistema.")
+                Text(if (state.active) "The foreground service sends a GPS location every second." else "Start the service to inject this location into Android.")
             }
         }
         if (!mockLocationEnabled) {
             Card(colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                 Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
                     Icon(Icons.Default.Warning, contentDescription = null)
-                    Text("Seleziona Location Spoofer in Opzioni sviluppatore > App di posizione fittizia prima di avviare.")
+                    Text("Select Location Spoofer in Developer options > Select mock location app before starting.")
                 }
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedTextField(latitude, onLatitudeChanged, label = { Text("Latitudine") }, modifier = Modifier.weight(1f), singleLine = true)
-            OutlinedTextField(longitude, onLongitudeChanged, label = { Text("Longitudine") }, modifier = Modifier.weight(1f), singleLine = true)
+            OutlinedTextField(latitude, onLatitudeChanged, label = { Text("Latitude") }, modifier = Modifier.weight(1f), singleLine = true)
+            OutlinedTextField(longitude, onLongitudeChanged, label = { Text("Longitude") }, modifier = Modifier.weight(1f), singleLine = true)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(onClick = onApply, modifier = Modifier.weight(1f)) { Text("Imposta") }
+            OutlinedButton(onClick = onApply, modifier = Modifier.weight(1f)) { Text("Apply") }
             OutlinedButton(onClick = onMap, modifier = Modifier.weight(1f)) {
-                Icon(Icons.Default.Map, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.size(6.dp)); Text("Mappa")
+                Icon(Icons.Default.Map, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.size(6.dp)); Text("Map")
             }
         }
         Button(onClick = if (state.active) onStop else onStart, modifier = Modifier.fillMaxWidth()) {
             Icon(if (state.active) Icons.Default.Stop else Icons.Default.PlayArrow, contentDescription = null)
-            Spacer(Modifier.size(8.dp)); Text(if (state.active) "Ferma spoof" else "Avvia spoof")
+            Spacer(Modifier.size(8.dp)); Text(if (state.active) "Stop spoof" else "Start spoof")
         }
         state.lastError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Text("Uso reale", style = MaterialTheme.typography.titleMedium)
-        Text("Questa app usa il test provider GPS ufficiale di Android. Non richiede root, ma Android deve essere configurato per consentire a questa app di fornire posizioni fittizie.")
+        Text("Real system integration", style = MaterialTheme.typography.titleMedium)
+        Text("This app uses Android's official GPS test provider. Root is not required, but Android must be configured to allow this app to provide mock locations.")
     }
 }
 
@@ -204,42 +198,36 @@ private fun MapScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var mapView: NativeMapView? by remember { mutableStateOf(null) }
     Column(modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Trascina il marker", style = MaterialTheme.typography.titleMedium)
-            FilterChip(selected = false, onClick = onBack, label = { Text("Fine") })
+            Text("Pan the map to move the marker", style = MaterialTheme.typography.titleMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = { mapView?.zoomOut() }, content = { Text("−") })
+                OutlinedButton(onClick = { mapView?.zoomIn() }, content = { Text("+") })
+                FilterChip(selected = false, onClick = onBack, label = { Text("Done") })
+            }
         }
         Box(Modifier.fillMaxWidth().weight(1f)) {
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { context ->
-                    WebView(context).apply {
-                        settings.javaScriptEnabled = true
-                        settings.domStorageEnabled = true
-                        settings.cacheMode = WebSettings.LOAD_DEFAULT
-                        webViewClient = WebViewClient()
-                        webChromeClient = WebChromeClient()
-                        addJavascriptInterface(object {
-                            @JavascriptInterface fun onLocation(lat: Double, lon: Double) {
-                                (context as? android.app.Activity)?.runOnUiThread { onCoordinatesChanged(Coordinates(lat, lon)) }
-                            }
-                        }, "AndroidBridge")
-                        loadDataWithBaseURL("https://localhost/", mapHtml(coordinates), "text/html", "UTF-8", null)
+                    NativeMapView(context).also { view ->
+                        mapView = view
+                        view.onCoordinatesChanged = onCoordinatesChanged
+                        view.setCenter(coordinates)
                     }
                 },
-                update = { view -> view.evaluateJavascript("window.setMarker(${coordinates.latitude}, ${coordinates.longitude});", null) },
+                update = { view ->
+                    mapView = view
+                    view.onCoordinatesChanged = onCoordinatesChanged
+                    view.setCenter(coordinates)
+                },
             )
         }
         Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) { Text(coordinates.toString(), Modifier.padding(16.dp), style = MaterialTheme.typography.titleMedium) }
     }
 }
-
-private fun mapHtml(coordinates: Coordinates): String = """
-<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1.0"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><style>html,body,#map{height:100%;margin:0} .leaflet-control-attribution{font-size:10px}</style></head>
-<body><div id="map"></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>
-let map=L.map('map').setView([${coordinates.latitude},${coordinates.longitude}],5);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);let marker=L.marker([${coordinates.latitude},${coordinates.longitude}],{draggable:true}).addTo(map);marker.on('dragend',()=>{let p=marker.getLatLng();AndroidBridge.onLocation(p.lat,p.lng)});window.setMarker=(lat,lon)=>{marker.setLatLng([lat,lon]);map.panTo([lat,lon])};
-</script></body></html>
-""".trimIndent()
 
 private fun formatCoordinate(value: Double): String = String.format(Locale.US, "%.6f", value)
 

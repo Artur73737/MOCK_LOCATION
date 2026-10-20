@@ -21,17 +21,17 @@ class LocationRepositoryImpl(context: Context) : LocationRepository {
         val intent = Intent(appContext, LocationSpoofService::class.java).setAction(LocationSpoofService.ACTION_START)
         ContextCompat.startForegroundService(appContext, intent)
         publish(_state.value.copy(active = true, lastError = null))
-    }.onFailure { error -> publish(_state.value.copy(lastError = error.message ?: "Avvio non riuscito")) }
+    }.onFailure { error -> publish(_state.value.copy(lastError = error.message ?: "Unable to start spoofing")) }
 
     override fun stop(): Result<Unit> = runCatching {
         appContext.startService(Intent(appContext, LocationSpoofService::class.java).setAction(LocationSpoofService.ACTION_STOP))
         publish(_state.value.copy(active = false, lastError = null))
-    }.onFailure { error -> publish(_state.value.copy(lastError = error.message ?: "Arresto non riuscito")) }
+    }.onFailure { error -> publish(_state.value.copy(lastError = error.message ?: "Unable to stop spoofing")) }
 
     override fun updateCoordinates(coordinates: Coordinates): Result<Unit> = runCatching {
-        require(coordinates.isValid) { "Coordinate fuori intervallo" }
+        require(coordinates.isValid) { "Coordinates are outside the valid range" }
         publish(_state.value.copy(coordinates = coordinates, lastError = null))
-    }.onFailure { error -> publish(_state.value.copy(lastError = error.message ?: "Coordinate non valide")) }
+    }.onFailure { error -> publish(_state.value.copy(lastError = error.message ?: "Invalid coordinates")) }
 
     override fun reportError(message: String) {
         publish(_state.value.copy(lastError = message))
